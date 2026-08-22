@@ -60,13 +60,30 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. تفعيل الأمان وسياسات الوصول (RLS)
+-- 3. جدول مسؤولي النظام وتسجيل الدخول (admins)
+CREATE TABLE IF NOT EXISTS public.admins (
+    id TEXT PRIMARY KEY DEFAULT 'admin-1',
+    username TEXT NOT NULL UNIQUE,
+    password TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. إدراج حساب المسؤول الافتراضي (admin / admin)
+INSERT INTO public.admins (id, username, password)
+VALUES ('admin-1', 'admin', 'admin')
+ON CONFLICT (id) DO NOTHING;
+
+-- 5. تفعيل الأمان وسياسات الوصول (RLS)
 ALTER TABLE public.halls ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public read-write for halls"
 ON public.halls FOR ALL USING (true) WITH CHECK (true);
 
 CREATE POLICY "Allow public read-write for bookings"
 ON public.bookings FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow public read-write for admins"
+ON public.admins FOR ALL USING (true) WITH CHECK (true);
 `;

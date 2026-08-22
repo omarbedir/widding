@@ -1,10 +1,19 @@
 import React from 'react';
+import { authService } from '../services/auth';
 
 interface HeaderProps {
   onOpenHallsModal: () => void;
+  onOpenChangeCredentials: () => void;
+  onLogout: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenHallsModal }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onOpenHallsModal,
+  onOpenChangeCredentials,
+  onLogout,
+}) => {
+  const currentUser = authService.getCurrentUser();
+
   return (
     <header className="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 shadow-lg">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex justify-between items-center gap-2">
@@ -24,14 +33,39 @@ export const Header: React.FC<HeaderProps> = ({ onOpenHallsModal }) => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Manage Halls Button */}
           <button
             type="button"
             onClick={onOpenHallsModal}
-            className="bg-slate-800 hover:bg-slate-700 active:bg-slate-700 border border-slate-700 text-amber-400 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 sm:gap-2 active:scale-95 shadow-sm cursor-pointer whitespace-nowrap"
+            className="bg-slate-800 hover:bg-slate-700 active:bg-slate-700 border border-slate-700 text-amber-400 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer whitespace-nowrap"
           >
             <i className="fa-solid fa-building-user text-xs sm:text-sm"></i>
             <span>إدارة القاعات</span>
+          </button>
+
+          {/* Admin Profile / Change Password Button */}
+          <button
+            type="button"
+            onClick={onOpenChangeCredentials}
+            className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer"
+            title="تغيير اسم المستخدم وكلمة المرور"
+          >
+            <i className="fa-solid fa-user-gear text-amber-400 text-xs"></i>
+            <span className="hidden sm:inline">
+              {currentUser?.username ? `الأدمن (${currentUser.username})` : 'حساب الأدمن'}
+            </span>
+          </button>
+
+          {/* Logout Button */}
+          <button
+            type="button"
+            onClick={onLogout}
+            className="bg-rose-950/40 hover:bg-rose-900/50 border border-rose-500/40 text-rose-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer"
+            title="تسجيل الخروج"
+          >
+            <i className="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+            <span className="hidden xs:inline">خروج</span>
           </button>
         </div>
       </div>

@@ -5,6 +5,8 @@ import {
   saveLocalHalls,
   saveLocalBookings,
 } from './services/db';
+import { authService } from './services/auth';
+import { LoginPage } from './components/LoginPage';
 import { Header } from './components/Header';
 import { HallSelector } from './components/HallSelector';
 import { WeeklySchedule } from './components/WeeklySchedule';
@@ -13,10 +15,14 @@ import { BookingsTable } from './components/BookingsTable';
 import { BookingModal } from './components/BookingModal';
 import { BookingDetailsModal } from './components/BookingDetailsModal';
 import { HallsModal } from './components/HallsModal';
+import { ChangeCredentialsModal } from './components/ChangeCredentialsModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer } from './components/ToastContainer';
 
 export const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() =>
+    authService.isLoggedIn()
+  );
   const [halls, setHalls] = useState<Hall[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [selectedHallId, setSelectedHallId] = useState<string>('all');
@@ -34,6 +40,7 @@ export const App = () => {
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
 
   const [isHallsModalOpen, setIsHallsModalOpen] = useState<boolean>(false);
+  const [isChangeCredentialsOpen, setIsChangeCredentialsOpen] = useState<boolean>(false);
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -58,7 +65,7 @@ export const App = () => {
     []
   );
 
-  // Load initial data from Supabase
+  // Load data from Supabase / localStorage
   const loadData = useCallback(async () => {
     const hallsResult = await dbService.fetchHalls();
     const bookingsResult = await dbService.fetchBookings();
@@ -68,8 +75,10 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated, loadData]);
 
   // Hall helpers
   const getHallName = (hallId: string) => {
@@ -102,6 +111,21 @@ export const App = () => {
     const now = new Date();
     setCurrentYear(now.getFullYear());
     setCurrentMonth(now.getMonth());
+  };
+
+  // Logout handler
+  const handleLogout = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'تسجيل الخروج',
+      message: 'هل أنت متأكد من رغبتك في تسجيل الخروج من لوحة التحكم؟',
+      onConfirm: () => {
+        authService.logout();
+        setIsAuthenticated(false);
+        setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        showToast('تم تسجيل الخروج بنجاح', 'info');
+      },
+    });
   };
 
   // Booking Modal handlers
@@ -266,12 +290,29 @@ export const App = () => {
     });
   };
 
+  // If not logged in, render LoginPage
+  if (!isAuthenticated) {
+    return (
+      <>
+        <LoginPage
+          onLoginSuccess={() => setIsAuthenticated(true)}
+          onShowToast={showToast}
+        />
+        <ToastContainer toasts={toasts} />
+      </>
+    );
+  }
+
   const activeBooking = bookings.find((b) => b.id === activeBookingId) || null;
 
   return (
     <div className="min-h-screen pb-14 flex flex-col overflow-x-hidden bg-[#0f172a] text-[#f8fafc]">
       {/* Top Sticky Header */}
-      <Header onOpenHallsModal={() => setIsHallsModalOpen(true)} />
+      <Header
+        onOpenHallsModal={() => setIsHallsModalOpen(true)}
+        onOpenChangeCredentials={() => setIsChangeCredentialsOpen(true)}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 mt-4 sm:mt-6 flex-1 w-full space-y-4 sm:space-y-6">
@@ -350,6 +391,12 @@ export const App = () => {
         bookings={bookings}
         onSaveHall={handleSaveHall}
         onDeleteHall={handleDeleteHall}
+      />
+
+      <ChangeCredentialsModal
+        isOpen={isChangeCredentialsOpen}
+        onClose={() => setIsChangeCredentialsOpen(false)}
+        onShowToast={showToast}
       />
 
       <ConfirmModal
