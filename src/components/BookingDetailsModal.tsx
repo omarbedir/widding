@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import type { Hall, Booking } from '../types';
+import type { Hall, Booking, AppUser } from '../types';
 import { formatCurrency } from '../utils/dateUtils';
 import { openWhatsAppBooking } from '../utils/whatsapp';
+import { resolveBookingOwnerName } from '../utils/userUtils';
 import confetti from 'canvas-confetti';
 
 interface BookingDetailsModalProps {
@@ -9,6 +10,7 @@ interface BookingDetailsModalProps {
   onClose: () => void;
   booking: Booking | null;
   halls: Hall[];
+  users?: AppUser[];
   onEdit: (booking: Booking) => void;
   onDelete: (booking: Booking) => void;
   onConfirmStatus: (booking: Booking) => void;
@@ -20,6 +22,7 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
   onClose,
   booking,
   halls,
+  users,
   onEdit,
   onDelete,
   onConfirmStatus,
@@ -104,6 +107,14 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
               <span className="text-slate-400 font-semibold">اسم العريس:</span>
               <span className="font-extrabold text-slate-100 text-sm sm:text-base">
                 {booking.groomName}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
+              <span className="text-slate-400 font-semibold">المسؤول عن تسجيل الحجز:</span>
+              <span className="font-bold text-amber-300 flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1 rounded-lg text-xs sm:text-sm">
+                <i className="fa-solid fa-user-check text-amber-400 text-xs"></i>
+                <span>{resolveBookingOwnerName(booking, users)}</span>
               </span>
             </div>
 

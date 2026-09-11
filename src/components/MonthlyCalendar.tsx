@@ -1,15 +1,17 @@
 import React from 'react';
-import type { Hall, Booking } from '../types';
+import type { Hall, Booking, AppUser } from '../types';
 import {
   ARABIC_MONTH_NAMES,
   ARABIC_WEEK_HEADERS,
   formatDateStr,
 } from '../utils/dateUtils';
+import { resolveBookingOwnerName } from '../utils/userUtils';
 
 interface MonthlyCalendarProps {
   halls: Hall[];
   bookings: Booking[];
   selectedHallId: string;
+  users?: AppUser[];
   currentYear: number;
   currentMonth: number;
   onPrevMonth: () => void;
@@ -23,6 +25,7 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
   halls,
   bookings,
   selectedHallId,
+  users,
   currentYear,
   currentMonth,
   onPrevMonth,
@@ -227,6 +230,12 @@ export const MonthlyCalendar: React.FC<MonthlyCalendarProps> = ({
                     <p className="text-[7px] sm:text-[10px] text-amber-400 truncate font-bold mt-0.5 hidden xs:block">
                       {getHallName(firstBooking.hallId)}
                     </p>
+                    {firstBooking && (
+                      <p className="text-[6px] sm:text-[9px] text-slate-300 truncate font-semibold mt-0.5 hidden sm:flex items-center gap-1 bg-slate-900/90 px-1 py-0.5 rounded border border-slate-700/60">
+                        <i className="fa-solid fa-user-check text-[7px] text-amber-400 shrink-0"></i>
+                        <span className="truncate">حجز: {resolveBookingOwnerName(firstBooking, users)}</span>
+                      </p>
+                    )}
                   </div>
                 )
               ) : (

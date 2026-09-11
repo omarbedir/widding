@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from '../services/auth';
 
 interface ChangeCredentialsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onShowToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  onSuccess?: () => void;
 }
 
 export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
   isOpen,
   onClose,
   onShowToast,
+  onSuccess,
 }) => {
-  const currentUser = authService.getCurrentUser();
   const [currentPassword, setCurrentPassword] = useState('');
-  const [newUsername, setNewUsername] = useState(currentUser?.username || '');
+  const [newName, setNewName] = useState('');
+  const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showCurrentPass, setShowCurrentPass] = useState(false);
@@ -22,18 +24,30 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  useEffect(() => {
+    if (isOpen) {
+      const u = authService.getCurrentUser();
+      setNewName(u?.name || 'المدير العام');
+      setNewUsername(u?.username || 'admin');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setErrorMsg('');
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (newPassword !== confirmPassword) {
+    if (newPassword && newPassword !== confirmPassword) {
       setErrorMsg('كلمة المرور الجديدة غير متطابقة مع تأكيد كلمة المرور');
       return;
     }
 
-    if (newPassword.length < 4) {
+    if (newPassword && newPassword.length < 4) {
       setErrorMsg('كلمة المرور الجديدة يجب ألا تقل عن 4 أحرف');
       return;
     }
@@ -43,15 +57,14 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
     try {
       const result = await authService.changeCredentials(
         currentPassword,
+        newName,
         newUsername,
         newPassword
       );
 
       if (result.success) {
         onShowToast(result.message, 'success');
-        setCurrentPassword('');
-        setNewPassword('');
-        setConfirmPassword('');
+        onSuccess?.();
         onClose();
       } else {
         setErrorMsg(result.message);
@@ -77,11 +90,11 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
 
         {/* Modal Header */}
         <h3 className="text-base sm:text-lg font-bold text-amber-400 mb-1 flex items-center gap-2 shrink-0">
-          <i className="fa-solid fa-user-shield text-amber-500"></i>
-          <span>تغيير بيانات دخول الأدمن</span>
+          <i className="fa-solid fa-user-gear text-amber-500"></i>
+          <span>تعديل بيانات حسابي الشخصي</span>
         </h3>
         <p className="text-xs text-slate-400 mb-4">
-          يمكنك تعديل اسم المستخدم وكلمة المرور الخاصة بلوحة التحكم
+          يمكنك تعديل اسم صاحب الحساب (المسؤول عن الحجز)، اسم المستخدم، وكلمة المرور
         </p>
 
         {/* Error Alert */}
@@ -97,7 +110,7 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
           {/* Current Password */}
           <div>
             <label className="block text-slate-300 font-bold mb-1">
-              كلمة المرور الحالية <span className="text-rose-400">*</span>
+              كلمة المرور الحالية للتأكيد <span className="text-rose-400">*</span>
             </label>
             <div className="relative">
               <input
@@ -106,7 +119,7 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder="أدخل كلمة المرور الحالية للتأكيد..."
-                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 pl-10 focus:border-amber-500 focus:outline-none transition"
+                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 pl-10 focus:border-amber-500 focus:outline-none transition font-medium"
               />
               <button
                 type="button"
@@ -118,34 +131,52 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
             </div>
           </div>
 
+          {/* Account Owner Name (اسم صاحب الحساب) */}
+          <div>
+            <label className="block text-slate-300 font-bold mb-1">
+              اسم صاحب الحساب (الاسم الظاهر كمسؤول عن الحجز) <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="مثال: عمر محمد أو المدير العام"
+              className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-medium"
+            />
+            <p className="text-[10px] text-amber-400/80 mt-1">
+              هذا الاسم هو الذي سيظهر كمسؤول عن الحجز في الجداول والكروت بدل اسم المستخدم
+            </p>
+          </div>
+
           {/* New Username */}
           <div>
             <label className="block text-slate-300 font-bold mb-1">
-              اسم المستخدم الجديد <span className="text-rose-400">*</span>
+              اسم المستخدم (لتسجيل الدخول) <span className="text-rose-400">*</span>
             </label>
             <input
               type="text"
               required
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
-              placeholder="مثال: admin_omar"
-              className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition"
+              placeholder="مثال: omar أو admin"
+              dir="ltr"
+              className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition text-left font-medium"
             />
           </div>
 
           {/* New Password */}
           <div>
             <label className="block text-slate-300 font-bold mb-1">
-              كلمة المرور الجديدة <span className="text-rose-400">*</span>
+              كلمة المرور الجديدة (اختياري - اتركها فارغة إذا لا ترغب بالتغيير)
             </label>
             <div className="relative">
               <input
                 type={showNewPass ? 'text' : 'password'}
-                required
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="كلمة مرور جديدة قوية..."
-                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 pl-10 focus:border-amber-500 focus:outline-none transition"
+                placeholder="اترك فارغاً للاحتفاظ بكلمة المرور الحالية..."
+                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 pl-10 focus:border-amber-500 focus:outline-none transition font-medium"
               />
               <button
                 type="button"
@@ -158,26 +189,28 @@ export const ChangeCredentialsModal: React.FC<ChangeCredentialsModalProps> = ({
           </div>
 
           {/* Confirm Password */}
-          <div>
-            <label className="block text-slate-300 font-bold mb-1">
-              تأكيد كلمة المرور الجديدة <span className="text-rose-400">*</span>
-            </label>
-            <input
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="أعد كتابة كلمة المرور الجديدة..."
-              className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition"
-            />
-          </div>
+          {newPassword && (
+            <div>
+              <label className="block text-slate-300 font-bold mb-1">
+                تأكيد كلمة المرور الجديدة <span className="text-rose-400">*</span>
+              </label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="أعد كتابة كلمة المرور الجديدة..."
+                className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-medium"
+              />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-800">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition text-xs font-semibold"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition text-xs font-semibold cursor-pointer"
             >
               إلغاء
             </button>

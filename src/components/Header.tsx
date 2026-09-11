@@ -3,12 +3,14 @@ import { authService } from '../services/auth';
 
 interface HeaderProps {
   onOpenHallsModal: () => void;
+  onOpenUsersModal?: () => void;
   onOpenChangeCredentials: () => void;
   onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenHallsModal,
+  onOpenUsersModal,
   onOpenChangeCredentials,
   onLogout,
 }) => {
@@ -34,6 +36,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Manage Users Button */}
+          {onOpenUsersModal && (
+            <button
+              type="button"
+              onClick={onOpenUsersModal}
+              className="bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer whitespace-nowrap"
+              title="إدارة مستخدمي النظام"
+            >
+              <i className="fa-solid fa-users-gear text-amber-400 text-xs sm:text-sm"></i>
+              <span className="hidden md:inline">إدارة المستخدمين</span>
+            </button>
+          )}
+
           {/* Manage Halls Button */}
           <button
             type="button"
@@ -44,16 +59,16 @@ export const Header: React.FC<HeaderProps> = ({
             <span>إدارة القاعات</span>
           </button>
 
-          {/* Admin Profile / Change Password Button */}
+          {/* User Profile / Change Password Button */}
           <button
             type="button"
             onClick={onOpenChangeCredentials}
             className="bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-slate-200 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer"
-            title="تغيير اسم المستخدم وكلمة المرور"
+            title="تغيير كلمة المرور والاسم"
           >
-            <i className="fa-solid fa-user-gear text-amber-400 text-xs"></i>
+            <i className="fa-solid fa-crown text-amber-400 text-xs"></i>
             <span className="hidden sm:inline">
-              {currentUser?.username ? `الأدمن (${currentUser.username})` : 'حساب الأدمن'}
+              {currentUser?.name || currentUser?.username || 'حسابي'}
             </span>
           </button>
 
@@ -72,3 +87,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

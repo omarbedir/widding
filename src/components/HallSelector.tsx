@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Hall, Booking } from '../types';
+import { formatDateStr } from '../utils/dateUtils';
 
 interface HallSelectorProps {
   halls: Hall[];
@@ -8,6 +9,14 @@ interface HallSelectorProps {
   onSelectHall: (hallId: string) => void;
 }
 
+const formatUpcomingBadge = (count: number): string => {
+  if (count === 0) return '0 حجز قادم';
+  if (count === 1) return '1 حجز قادم';
+  if (count === 2) return '2 حجز قادم';
+  if (count >= 3 && count <= 10) return `${count} حجوزات قادمة`;
+  return `${count} حجز قادم`;
+};
+
 export const HallSelector: React.FC<HallSelectorProps> = ({
   halls,
   bookings,
@@ -15,6 +24,7 @@ export const HallSelector: React.FC<HallSelectorProps> = ({
   onSelectHall,
 }) => {
   const selectedHall = halls.find((h) => h.id === selectedHallId);
+  const todayStr = formatDateStr(new Date());
 
   return (
     <section className="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 sm:p-5 shadow-xl">
@@ -39,7 +49,10 @@ export const HallSelector: React.FC<HallSelectorProps> = ({
           {/* Individual Hall Option Cards */}
           {halls.map((hall) => {
             const isSelected = selectedHallId === hall.id;
-            const hallBookingsCount = bookings.filter(
+            const upcomingBookingsCount = bookings.filter(
+              (b) => b.hallId === hall.id && b.date >= todayStr
+            ).length;
+            const totalBookingsCount = bookings.filter(
               (b) => b.hallId === hall.id
             ).length;
 
@@ -80,13 +93,14 @@ export const HallSelector: React.FC<HallSelectorProps> = ({
 
                 <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 mr-2">
                   <span
+                    title={`الحجوزات القادمة: ${upcomingBookingsCount} (إجمالي الحجوزات: ${totalBookingsCount})`}
                     className={`text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg font-extrabold ${
                       isSelected
                         ? 'bg-slate-950/20 text-slate-950'
                         : 'bg-slate-800 text-slate-300 border border-slate-700'
                     }`}
                   >
-                    {hallBookingsCount} حجوزات
+                    {formatUpcomingBadge(upcomingBookingsCount)}
                   </span>
                   {isSelected && (
                     <i className="fa-solid fa-circle-check text-slate-950 text-sm sm:text-base"></i>

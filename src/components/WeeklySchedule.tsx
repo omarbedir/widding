@@ -1,10 +1,12 @@
 import React from 'react';
-import type { Booking } from '../types';
+import type { Booking, AppUser } from '../types';
 import { formatDateStr, ARABIC_DAY_NAMES } from '../utils/dateUtils';
+import { resolveBookingOwnerName } from '../utils/userUtils';
 
 interface WeeklyScheduleProps {
   bookings: Booking[];
   selectedHallId: string;
+  users?: AppUser[];
   onOpenBookingModal: (dateStr: string) => void;
   onOpenDetailsModal: (bookingId: string) => void;
 }
@@ -12,6 +14,7 @@ interface WeeklyScheduleProps {
 export const WeeklySchedule: React.FC<WeeklyScheduleProps> = ({
   bookings,
   selectedHallId,
+  users,
   onOpenBookingModal,
   onOpenDetailsModal,
 }) => {
@@ -103,6 +106,16 @@ export const WeeklySchedule: React.FC<WeeklyScheduleProps> = ({
                     : d.booking?.groomName
                   : '+ حجز بالموعد'}
               </div>
+
+              {d.isBooked && d.booking && (
+                <div
+                  title={`المسؤول عن الحجز: ${resolveBookingOwnerName(d.booking, users)}`}
+                  className="text-[7px] sm:text-[9px] text-amber-300 font-bold truncate max-w-full mt-0.5 sm:mt-1 flex items-center gap-1 justify-center bg-slate-950/60 px-1.5 py-0.2 rounded-md border border-amber-500/20"
+                >
+                  <i className="fa-solid fa-user-check text-[7px] text-amber-400 shrink-0"></i>
+                  <span className="truncate">{resolveBookingOwnerName(d.booking, users)}</span>
+                </div>
+              )}
             </div>
           );
         })}

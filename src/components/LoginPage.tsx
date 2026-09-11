@@ -24,7 +24,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     try {
       const result = await authService.login(username, password);
       if (result.success) {
-        onShowToast('تم تسجيل الدخول بنجاح! أهلاً بك 👑', 'success');
+        onShowToast(`تم تسجيل الدخول بنجاح! أهلاً بك (${result.user?.name || 'مرحباً'}) 👑`, 'success');
         onLoginSuccess();
       } else {
         setErrorMsg(result.message || 'بيانات الدخول غير صحيحة');
@@ -78,7 +78,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="أدخل اسم المستخدم..."
+                placeholder="أدخل اسم المستخدم (مثال: admin)"
                 className="w-full bg-slate-800/90 border border-slate-700 text-slate-100 rounded-xl py-3 pr-10 pl-4 focus:border-amber-500 focus:outline-none transition placeholder:text-slate-500 font-medium"
               />
               <i className="fa-solid fa-user absolute right-3.5 top-3.5 text-slate-500 text-sm"></i>
@@ -119,7 +119,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
           <div className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-xl text-slate-400 text-[11px] leading-relaxed">
             <span className="text-amber-400 font-bold ml-1">
               <i className="fa-solid fa-key ml-1"></i>
-              بيانات الدخول المبدئية:
+              حساب الأدمن الافتراضي:
             </span>
             اسم المستخدم: <code className="text-amber-300 font-mono">admin</code> | كلمة المرور: <code className="text-amber-300 font-mono">admin</code>
           </div>

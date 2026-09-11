@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Hall, Booking, ToastNotification } from './types';
+import type { Hall, Booking, ToastNotification, AppUser } from './types';
 import { formatCurrency } from './utils/dateUtils';
+import { resolveBookingOwnerName } from './utils/userUtils';
 import {
   dbService,
   saveLocalHalls,
@@ -16,6 +17,7 @@ import { BookingsTable } from './components/BookingsTable';
 import { BookingModal } from './components/BookingModal';
 import { BookingDetailsModal } from './components/BookingDetailsModal';
 import { HallsModal } from './components/HallsModal';
+import { UsersModal } from './components/UsersModal';
 import { ChangeCredentialsModal } from './components/ChangeCredentialsModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer } from './components/ToastContainer';
@@ -26,6 +28,7 @@ export const App = () => {
   );
   const [halls, setHalls] = useState<Hall[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [users, setUsers] = useState<AppUser[]>([]);
   const [selectedHallId, setSelectedHallId] = useState<string>('');
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth());
@@ -41,7 +44,9 @@ export const App = () => {
   const [activeBookingId, setActiveBookingId] = useState<string | null>(null);
 
   const [isHallsModalOpen, setIsHallsModalOpen] = useState<boolean>(false);
+  const [isUsersModalOpen, setIsUsersModalOpen] = useState<boolean>(false);
   const [isChangeCredentialsOpen, setIsChangeCredentialsOpen] = useState<boolean>(false);
+
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -70,10 +75,12 @@ export const App = () => {
   const loadData = useCallback(async () => {
     const hallsResult = await dbService.fetchHalls();
     const bookingsResult = await dbService.fetchBookings();
+    const usersResult = await dbService.fetchUsers();
 
     const loadedHalls = hallsResult.data;
     setHalls(loadedHalls);
     setBookings(bookingsResult.data);
+    setUsers(usersResult.data);
 
     if (loadedHalls.length > 0) {
       setSelectedHallId((prev) =>
@@ -180,14 +187,28 @@ export const App = () => {
       return;
     }
 
+    const currentUser = authService.getCurrentUser();
+    const creatorName = resolveBookingOwnerName(
+      { createdById: currentUser?.id, createdByName: currentUser?.name },
+      users
+    );
+    const creatorId = currentUser?.id || '';
+
     if (id) {
       // Update
+      const existing = bookings.find((b) => b.id === id);
+      const updatedBooking: Booking = {
+        ...bookingData,
+        id,
+        createdById: existing?.createdById || bookingData.createdById || creatorId,
+        createdByName: existing?.createdByName || bookingData.createdByName || creatorName,
+      };
       const updatedList = bookings.map((b) =>
-        b.id === id ? ({ ...bookingData, id } as Booking) : b
+        b.id === id ? updatedBooking : b
       );
       setBookings(updatedList);
       saveLocalBookings(updatedList);
-      await dbService.upsertBooking({ ...bookingData, id } as Booking);
+      await dbService.upsertBooking(updatedBooking);
       showToast('تم تحديث بيانات الحجز بنجاح', 'success');
     } else {
       // Create new
@@ -195,13 +216,15 @@ export const App = () => {
         ...bookingData,
         id: 'b-' + Date.now(),
         created_at: new Date().toISOString(),
+        createdById: creatorId,
+        createdByName: creatorName,
       };
       const updatedList = [...bookings, newBooking];
       setBookings(updatedList);
       saveLocalBookings(updatedList);
       await dbService.upsertBooking(newBooking);
       showToast(
-        `تم تسجيل حجز جديد بنجاح في ${getHallName(hallId)} للعريس (${groomName})`,
+        `تم تسجيل حجز جديد بنجاح في ${getHallName(hallId)} للعريس (${groomName}) بواسطة (${creatorName})`,
         'success'
       );
     }
@@ -364,6 +387,7 @@ export const App = () => {
       {/* Top Sticky Header */}
       <Header
         onOpenHallsModal={() => setIsHallsModalOpen(true)}
+        onOpenUsersModal={() => setIsUsersModalOpen(true)}
         onOpenChangeCredentials={() => setIsChangeCredentialsOpen(true)}
         onLogout={handleLogout}
       />
@@ -382,6 +406,7 @@ export const App = () => {
         <WeeklySchedule
           bookings={bookings}
           selectedHallId={selectedHallId}
+          users={users}
           onOpenBookingModal={(dateStr) => handleOpenNewBooking(dateStr)}
           onOpenDetailsModal={handleOpenDetails}
         />
@@ -391,6 +416,7 @@ export const App = () => {
           halls={halls}
           bookings={bookings}
           selectedHallId={selectedHallId}
+          users={users}
           currentYear={currentYear}
           currentMonth={currentMonth}
           onPrevMonth={handlePrevMonth}
@@ -407,6 +433,7 @@ export const App = () => {
           halls={halls}
           bookings={bookings}
           selectedHallId={selectedHallId}
+          users={users}
           onOpenDetailsModal={handleOpenDetails}
         />
       </main>
@@ -433,6 +460,7 @@ export const App = () => {
         }}
         booking={activeBooking}
         halls={halls}
+        users={users}
         onEdit={handleEditFromDetails}
         onDelete={handleDeleteFromDetails}
         onConfirmStatus={handleConfirmStatusFromDetails}
@@ -448,10 +476,18 @@ export const App = () => {
         onDeleteHall={handleDeleteHall}
       />
 
+      <UsersModal
+        isOpen={isUsersModalOpen}
+        onClose={() => setIsUsersModalOpen(false)}
+        onShowToast={showToast}
+        onUsersChange={(newUsers) => setUsers(newUsers)}
+      />
+
       <ChangeCredentialsModal
         isOpen={isChangeCredentialsOpen}
         onClose={() => setIsChangeCredentialsOpen(false)}
         onShowToast={showToast}
+        onSuccess={loadData}
       />
 
       <ConfirmModal

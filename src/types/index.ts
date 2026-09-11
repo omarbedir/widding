@@ -5,6 +5,14 @@ export interface Hall {
   created_at?: string;
 }
 
+export interface AppUser {
+  id: string;
+  name: string;
+  username: string;
+  password?: string;
+  created_at?: string;
+}
+
 export interface Booking {
   id: string;
   groomName: string;
@@ -18,6 +26,8 @@ export interface Booking {
   remainingAmount: number;
   notes?: string;
   created_at?: string;
+  createdById?: string;
+  createdByName?: string;
 }
 
 export interface ToastNotification {
@@ -30,3 +40,4 @@ export interface SupabaseConfig {
   url: string;
   anonKey: string;
 }
+
