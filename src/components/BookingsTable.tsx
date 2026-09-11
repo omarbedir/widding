@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Hall, Booking } from '../types';
-import { formatCurrency } from '../utils/dateUtils';
+import { formatCurrency, formatDateStr } from '../utils/dateUtils';
 
 interface BookingsTableProps {
   halls: Hall[];
@@ -16,6 +16,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
   onOpenDetailsModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const todayStr = formatDateStr(new Date());
 
   const getHallName = (hallId: string) => {
     const h = halls.find((x) => x.id === hallId);
@@ -24,6 +25,16 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
 
   const filteredBookings = bookings
     .filter((b) => {
+      // إذا انقضى يوم الحجز ولم يتبق أي مبلغ على العريس، لا يتم إظهار الحجز في هذا السجل
+      const isPast = b.date < todayStr;
+      const isPaidInFull =
+        (b.remainingAmount ?? 0) <= 0 ||
+        (b.totalAmount > 0 && (b.paidAmount ?? 0) >= b.totalAmount);
+
+      if (isPast && isPaidInFull) {
+        return false;
+      }
+
       const matchesHall =
         selectedHallId === 'all' || b.hallId === selectedHallId;
       const q = searchQuery.toLowerCase().trim();

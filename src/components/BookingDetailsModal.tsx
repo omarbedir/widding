@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import type { Hall, Booking } from '../types';
 import { formatCurrency } from '../utils/dateUtils';
 import { openWhatsAppBooking } from '../utils/whatsapp';
@@ -11,6 +12,7 @@ interface BookingDetailsModalProps {
   onEdit: (booking: Booking) => void;
   onDelete: (booking: Booking) => void;
   onConfirmStatus: (booking: Booking) => void;
+  onAddPayment?: (bookingId: string, amount: number) => void;
 }
 
 export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
@@ -21,7 +23,18 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
   onEdit,
   onDelete,
   onConfirmStatus,
+  onAddPayment,
 }) => {
+  const [showAddPayment, setShowAddPayment] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState<number | ''>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setShowAddPayment(false);
+      setPaymentAmount('');
+    }
+  }, [isOpen, booking?.id]);
+
   if (!isOpen || !booking) return null;
 
   const hall = halls.find((h) => h.id === booking.hallId);
@@ -38,6 +51,32 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
       origin: { y: 0.6 },
     });
     onConfirmStatus(booking);
+  };
+
+  const numericPayment = typeof paymentAmount === 'number' ? paymentAmount : 0;
+  const isPaymentExceeding = booking.remainingAmount > 0 && numericPayment > booking.remainingAmount;
+  const newCalculatedPaid = booking.paidAmount + numericPayment;
+  const newCalculatedRemaining = Math.max(0, booking.remainingAmount - numericPayment);
+
+  const handleSavePayment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = typeof paymentAmount === 'number' ? paymentAmount : 0;
+    if (amount <= 0 || isPaymentExceeding) return;
+
+    if (onAddPayment) {
+      onAddPayment(booking.id, amount);
+    }
+
+    if (booking.remainingAmount - amount <= 0) {
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
+    }
+
+    setShowAddPayment(false);
+    setPaymentAmount('');
   };
 
   return (
@@ -59,7 +98,6 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
         </h3>
 
         <div className="overflow-y-auto flex-1 pr-1 pl-1 space-y-3">
-
           {/* Details Card */}
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5 text-xs sm:text-sm text-slate-300">
             <div className="flex justify-between items-center border-b border-slate-800/80 pb-2">
@@ -119,13 +157,137 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
             <div className="flex justify-between items-center">
               <span className="text-slate-400 font-semibold">المتبقي:</span>
               <span
-                className={`font-black text-sm sm:text-base ${booking.remainingAmount > 0 ? 'text-rose-400' : 'text-slate-400'
-                  }`}
+                className={`font-black text-sm sm:text-base ${
+                  booking.remainingAmount > 0 ? 'text-rose-400' : 'text-slate-400'
+                }`}
               >
                 {formatCurrency(booking.remainingAmount)}
               </span>
             </div>
           </div>
+
+          {/* Add Payment Interactive Section */}
+          {showAddPayment && (
+            <form
+              onSubmit={handleSavePayment}
+              className="bg-slate-950 p-4 rounded-xl border border-emerald-500/50 space-y-3 animate-in fade-in zoom-in-95 duration-150 shadow-xl shadow-emerald-950/20"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs sm:text-sm">
+                  <i className="fa-solid fa-hand-holding-dollar text-base"></i>
+                  <span>إضافة دفعة مالية جديدة</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddPayment(false);
+                    setPaymentAmount('');
+                  }}
+                  className="text-slate-400 hover:text-slate-200 text-xs px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1 text-xs">
+                  المبلغ المراد إضافته (ج.م) <span className="text-rose-400">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max={booking.remainingAmount > 0 ? booking.remainingAmount : undefined}
+                    value={paymentAmount}
+                    onChange={(e) =>
+                      setPaymentAmount(
+                        e.target.value === '' ? '' : Math.max(0, Number(e.target.value))
+                      )
+                    }
+                    placeholder="مثال: 5000"
+                    className={`w-full bg-slate-900 border text-emerald-400 font-black text-sm sm:text-base rounded-xl p-2.5 pl-10 focus:outline-none transition font-mono ${
+                      isPaymentExceeding
+                        ? 'border-rose-500 text-rose-400 focus:border-rose-400'
+                        : 'border-slate-700 focus:border-emerald-500'
+                    }`}
+                    autoFocus
+                  />
+                  <span className="absolute left-3 top-2.5 sm:top-3 text-xs text-slate-500 font-bold">
+                    ج.م
+                  </span>
+                </div>
+              </div>
+
+              {/* Error banner if payment exceeds remaining amount */}
+              {isPaymentExceeding && (
+                <div className="text-rose-400 text-xs font-bold bg-rose-950/40 border border-rose-500/40 p-2.5 rounded-xl flex items-center gap-2 animate-in fade-in duration-200">
+                  <i className="fa-solid fa-triangle-exclamation text-sm shrink-0"></i>
+                  <span>
+                    تنبيه: لا يمكن إضافة مبلغ أكبر من المبلغ المتبقي ({formatCurrency(booking.remainingAmount)})
+                  </span>
+                </div>
+              )}
+
+              {/* Quick shortcut presets */}
+              <div className="flex flex-wrap gap-1.5 items-center">
+                {booking.remainingAmount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentAmount(booking.remainingAmount)}
+                    className="text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 active:scale-95 transition cursor-pointer"
+                  >
+                    كامل المتبقي ({formatCurrency(booking.remainingAmount)})
+                  </button>
+                )}
+                {[1000, 2000, 5000, 10000].map((val) => {
+                  if (booking.remainingAmount > 0 && val > booking.remainingAmount) return null;
+                  return (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setPaymentAmount(val)}
+                      className="text-[10px] sm:text-xs font-bold px-2 py-1 rounded-lg bg-slate-850 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 active:scale-95 transition cursor-pointer"
+                    >
+                      +{val.toLocaleString('ar-EG')} ج.م
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Live financial preview */}
+              {numericPayment > 0 && !isPaymentExceeding && (
+                <div className="bg-slate-900/90 rounded-xl p-2.5 border border-slate-800/80 text-xs space-y-1.5 font-medium">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>إجمالي المدفوع الجديد:</span>
+                    <span className="font-bold text-emerald-400 text-xs sm:text-sm">
+                      {formatCurrency(newCalculatedPaid)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>المتبقي الجديد بعد الإضافة:</span>
+                    <span
+                      className={`font-black text-xs sm:text-sm ${
+                        newCalculatedRemaining === 0 ? 'text-emerald-400' : 'text-rose-400'
+                      }`}
+                    >
+                      {formatCurrency(newCalculatedRemaining)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirm payment button */}
+              <button
+                type="submit"
+                disabled={numericPayment <= 0 || isPaymentExceeding}
+                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-extrabold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 text-xs sm:text-sm active:scale-95 shadow-md shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <i className="fa-solid fa-circle-check"></i>
+                <span>تأكيد وحفظ الدفعة</span>
+              </button>
+            </form>
+          )}
 
           {/* Notes if any */}
           {booking.notes && (
@@ -159,6 +321,19 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
               >
                 <i className="fa-solid fa-circle-check"></i>
                 <span>تأكيد الحجز النهائي</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowAddPayment((prev) => !prev)}
+                className={`font-bold text-xs flex items-center gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
+                  showAddPayment
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
+                    : 'text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20'
+                }`}
+              >
+                <i className="fa-solid fa-hand-holding-dollar"></i>
+                <span>إضافة مبلغ</span>
               </button>
 
               <button

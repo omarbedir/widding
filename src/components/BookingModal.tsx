@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Hall, Booking } from '../types';
-import { formatDateStr } from '../utils/dateUtils';
+import { formatDateStr, formatCurrency } from '../utils/dateUtils';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -61,6 +61,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const totalNum = typeof totalAmount === 'number' ? totalAmount : 0;
   const paidNum = typeof paidAmount === 'number' ? paidAmount : 0;
+  const isPaidExceeding = totalNum > 0 && paidNum > totalNum;
   const remainingAmount = Math.max(0, totalNum - paidNum);
 
   const selectedHall = halls.find((h) => h.id === hallId);
@@ -72,6 +73,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPaidExceeding) return;
+
     onSave({
       id: editBooking ? editBooking.id : undefined,
       groomName: groomName.trim() || 'بدون اسم',
@@ -228,12 +231,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <input
                   type="number"
                   min="0"
+                  max={totalNum > 0 ? totalNum : undefined}
                   value={paidAmount}
                   onChange={(e) =>
                     setPaidAmount(e.target.value === '' ? '' : Number(e.target.value))
                   }
                   placeholder="0"
-                  className="w-full bg-slate-800 border border-slate-700 text-emerald-400 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-bold text-center"
+                  className={`w-full bg-slate-800 border text-emerald-400 rounded-xl p-2.5 focus:outline-none transition font-bold text-center ${
+                    isPaidExceeding
+                      ? 'border-rose-500 text-rose-400 focus:border-rose-400'
+                      : 'border-slate-700 focus:border-amber-500'
+                  }`}
                 />
               </div>
 
@@ -250,6 +258,16 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 />
               </div>
             </div>
+
+            {/* Error banner if paid amount > total amount */}
+            {isPaidExceeding && (
+              <div className="text-rose-400 text-xs font-bold bg-rose-950/40 border border-rose-500/40 p-2.5 rounded-xl flex items-center gap-2 animate-in fade-in duration-200">
+                <i className="fa-solid fa-triangle-exclamation text-sm shrink-0"></i>
+                <span>
+                  تنبيه: لا يمكن أن يتجاوز العربون / المبلغ المدفوع إجمالي المبلغ الكلي ({formatCurrency(totalNum)})
+                </span>
+              </div>
+            )}
 
             {/* Notes */}
             <div>
@@ -279,7 +297,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <button
               type="submit"
-              className="flex-1 sm:flex-initial px-5 py-2.5 bg-gradient-to-r from-emerald-500 via-amber-500 to-yellow-500 hover:from-emerald-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 text-xs sm:text-sm cursor-pointer"
+              disabled={isPaidExceeding}
+              className="flex-1 sm:flex-initial px-5 py-2.5 bg-gradient-to-r from-emerald-500 via-amber-500 to-yellow-500 hover:from-emerald-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <i className="fa-solid fa-circle-check text-sm"></i>
               <span>{editBooking ? 'حفظ التعديلات' : 'تأكيد الحجز والتعاقد'}</span>

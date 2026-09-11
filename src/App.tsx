@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Hall, Booking, ToastNotification } from './types';
+import { formatCurrency } from './utils/dateUtils';
 import {
   dbService,
   saveLocalHalls,
@@ -25,7 +26,7 @@ export const App = () => {
   );
   const [halls, setHalls] = useState<Hall[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [selectedHallId, setSelectedHallId] = useState<string>('all');
+  const [selectedHallId, setSelectedHallId] = useState<string>('');
   const [currentYear, setCurrentYear] = useState<number>(new Date().getFullYear());
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth());
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -70,8 +71,15 @@ export const App = () => {
     const hallsResult = await dbService.fetchHalls();
     const bookingsResult = await dbService.fetchBookings();
 
-    setHalls(hallsResult.data);
+    const loadedHalls = hallsResult.data;
+    setHalls(loadedHalls);
     setBookings(bookingsResult.data);
+
+    if (loadedHalls.length > 0) {
+      setSelectedHallId((prev) =>
+        prev && loadedHalls.some((h) => h.id === prev) ? prev : loadedHalls[0].id
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -79,6 +87,12 @@ export const App = () => {
       loadData();
     }
   }, [isAuthenticated, loadData]);
+
+  useEffect(() => {
+    if (halls.length > 0 && (!selectedHallId || !halls.some((h) => h.id === selectedHallId))) {
+      setSelectedHallId(halls[0].id);
+    }
+  }, [halls, selectedHallId]);
 
   // Hall helpers
   const getHallName = (hallId: string) => {
@@ -141,10 +155,15 @@ export const App = () => {
   const handleSaveBooking = async (
     bookingData: Omit<Booking, 'id' | 'created_at'> & { id?: string }
   ) => {
-    const { id, hallId, date, groomName } = bookingData;
+    const { id, hallId, date, groomName, totalAmount, paidAmount } = bookingData;
 
     if (!hallId) {
       showToast('يرجى إضافة قاعة أولاً من إدارة القاعات قبل تسجيل الحجز', 'error');
+      return;
+    }
+
+    if (totalAmount > 0 && paidAmount > totalAmount) {
+      showToast('خطأ: لا يمكن أن يكون المبلغ المدفوع (العربون) أكبر من المبلغ الكلي', 'error');
       return;
     }
 
@@ -227,6 +246,41 @@ export const App = () => {
     setIsDetailsModalOpen(false);
   };
 
+  const handleAddPayment = async (bookingId: string, amountToAdd: number) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (!booking) return;
+
+    if (amountToAdd > booking.remainingAmount) {
+      showToast(
+        `خطأ: المبلغ المضاف (${formatCurrency(amountToAdd)}) يتجاوز المتبقي (${formatCurrency(booking.remainingAmount)})`,
+        'error'
+      );
+      return;
+    }
+
+    const newPaidAmount = (booking.paidAmount || 0) + amountToAdd;
+    const newRemainingAmount = Math.max(0, (booking.totalAmount || 0) - newPaidAmount);
+
+    const updatedBooking: Booking = {
+      ...booking,
+      paidAmount: newPaidAmount,
+      remainingAmount: newRemainingAmount,
+    };
+
+    const updatedList = bookings.map((b) =>
+      b.id === bookingId ? updatedBooking : b
+    );
+
+    setBookings(updatedList);
+    saveLocalBookings(updatedList);
+    await dbService.upsertBooking(updatedBooking);
+
+    showToast(
+      `تم تسجيل دفعة بقيمة ${formatCurrency(amountToAdd)} لحساب (${booking.groomName}) بنجاح`,
+      'success'
+    );
+  };
+
   // Halls Modal handlers
   const handleSaveHall = async (hallData: { id?: string; name: string; capacity: number }) => {
     if (hallData.id) {
@@ -279,7 +333,7 @@ export const App = () => {
         saveLocalBookings(updatedBookings);
 
         if (selectedHallId === hall.id) {
-          setSelectedHallId('all');
+          setSelectedHallId(updatedHalls.length > 0 ? updatedHalls[0].id : '');
         }
 
         await dbService.deleteHall(hall.id);
@@ -382,6 +436,7 @@ export const App = () => {
         onEdit={handleEditFromDetails}
         onDelete={handleDeleteFromDetails}
         onConfirmStatus={handleConfirmStatusFromDetails}
+        onAddPayment={handleAddPayment}
       />
 
       <HallsModal
