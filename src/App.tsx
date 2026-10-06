@@ -19,6 +19,7 @@ import { BookingDetailsModal } from './components/BookingDetailsModal';
 import { HallsModal } from './components/HallsModal';
 import { UsersModal } from './components/UsersModal';
 import { ChangeCredentialsModal } from './components/ChangeCredentialsModal';
+import { WhatsAppTemplateModal } from './components/WhatsAppTemplateModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer } from './components/ToastContainer';
 
@@ -46,6 +47,7 @@ export const App = () => {
   const [isHallsModalOpen, setIsHallsModalOpen] = useState<boolean>(false);
   const [isUsersModalOpen, setIsUsersModalOpen] = useState<boolean>(false);
   const [isChangeCredentialsOpen, setIsChangeCredentialsOpen] = useState<boolean>(false);
+  const [isWaTemplateModalOpen, setIsWaTemplateModalOpen] = useState<boolean>(false);
 
 
   const [confirmModal, setConfirmModal] = useState<{
@@ -197,9 +199,24 @@ export const App = () => {
     if (id) {
       // Update
       const existing = bookings.find((b) => b.id === id);
+      
+      // Calculate payment differences if paidAmount changed directly from edit modal
+      let updatedPayments = existing?.payments || [];
+      if (bookingData.paidAmount > (existing?.paidAmount || 0)) {
+        updatedPayments = [...updatedPayments, {
+          id: 'pay-' + Date.now(),
+          amount: bookingData.paidAmount - (existing?.paidAmount || 0),
+          date: new Date().toISOString(),
+          description: `دفعة إضافية (تعديل)`,
+        }];
+      } else if (bookingData.paidAmount < (existing?.paidAmount || 0) && bookingData.paidAmount === 0) {
+         updatedPayments = []; // Reset payments if paidAmount is set to 0
+      }
+
       const updatedBooking: Booking = {
         ...bookingData,
         id,
+        payments: updatedPayments,
         createdById: existing?.createdById || bookingData.createdById || creatorId,
         createdByName: existing?.createdByName || bookingData.createdByName || creatorName,
       };
@@ -212,9 +229,20 @@ export const App = () => {
       showToast('تم تحديث بيانات الحجز بنجاح', 'success');
     } else {
       // Create new
+      const initialPayments = [];
+      if (bookingData.paidAmount > 0) {
+        initialPayments.push({
+          id: 'pay-' + Date.now(),
+          amount: bookingData.paidAmount,
+          date: new Date().toISOString(),
+          description: 'عربون',
+        });
+      }
+
       const newBooking: Booking = {
         ...bookingData,
         id: 'b-' + Date.now(),
+        payments: initialPayments,
         created_at: new Date().toISOString(),
         createdById: creatorId,
         createdByName: creatorName,
@@ -264,11 +292,6 @@ export const App = () => {
     });
   };
 
-  const handleConfirmStatusFromDetails = (booking: Booking) => {
-    showToast(`تم تأكيد حجز العريس (${booking.groomName}) بنجاح! 🎉`, 'success');
-    setIsDetailsModalOpen(false);
-  };
-
   const handleAddPayment = async (bookingId: string, amountToAdd: number) => {
     const booking = bookings.find((b) => b.id === bookingId);
     if (!booking) return;
@@ -284,10 +307,18 @@ export const App = () => {
     const newPaidAmount = (booking.paidAmount || 0) + amountToAdd;
     const newRemainingAmount = Math.max(0, (booking.totalAmount || 0) - newPaidAmount);
 
+    const newPayment = {
+      id: 'pay-' + Date.now(),
+      amount: amountToAdd,
+      date: new Date().toISOString(),
+      description: (booking.payments?.length || 0) === 0 ? 'العربون' : `الدفعة ${(booking.payments?.length || 0)}`,
+    };
+
     const updatedBooking: Booking = {
       ...booking,
       paidAmount: newPaidAmount,
       remainingAmount: newRemainingAmount,
+      payments: [...(booking.payments || []), newPayment],
     };
 
     const updatedList = bookings.map((b) =>
@@ -304,12 +335,21 @@ export const App = () => {
     );
   };
 
+  const handleUpdateBookingDirect = async (updatedBooking: Booking) => {
+    const updatedList = bookings.map((b) =>
+      b.id === updatedBooking.id ? updatedBooking : b
+    );
+    setBookings(updatedList);
+    saveLocalBookings(updatedList);
+    await dbService.upsertBooking(updatedBooking);
+  };
+
   // Halls Modal handlers
-  const handleSaveHall = async (hallData: { id?: string; name: string; capacity: number }) => {
+  const handleSaveHall = async (hallData: { id?: string; name: string; capacity: number; price?: number; inclusions?: string }) => {
     if (hallData.id) {
       // Edit
       const updated = halls.map((h) =>
-        h.id === hallData.id ? { ...h, name: hallData.name, capacity: hallData.capacity } : h
+        h.id === hallData.id ? { ...h, name: hallData.name, capacity: hallData.capacity, price: hallData.price, inclusions: hallData.inclusions } : h
       );
       setHalls(updated);
       saveLocalHalls(updated);
@@ -317,6 +357,8 @@ export const App = () => {
         id: hallData.id,
         name: hallData.name,
         capacity: hallData.capacity,
+        price: hallData.price,
+        inclusions: hallData.inclusions,
       });
       showToast(`تم تعديل بيانات ${hallData.name} بنجاح`, 'success');
     } else {
@@ -325,6 +367,8 @@ export const App = () => {
         id: 'hall-' + Date.now(),
         name: hallData.name,
         capacity: hallData.capacity,
+        price: hallData.price,
+        inclusions: hallData.inclusions,
         created_at: new Date().toISOString(),
       };
       const updated = [...halls, newHall];
@@ -387,6 +431,7 @@ export const App = () => {
       {/* Top Sticky Header */}
       <Header
         onOpenHallsModal={() => setIsHallsModalOpen(true)}
+        onOpenWaTemplateModal={() => setIsWaTemplateModalOpen(true)}
         onOpenUsersModal={() => setIsUsersModalOpen(true)}
         onOpenChangeCredentials={() => setIsChangeCredentialsOpen(true)}
         onLogout={handleLogout}
@@ -463,8 +508,8 @@ export const App = () => {
         users={users}
         onEdit={handleEditFromDetails}
         onDelete={handleDeleteFromDetails}
-        onConfirmStatus={handleConfirmStatusFromDetails}
         onAddPayment={handleAddPayment}
+        onUpdateBookingDirect={handleUpdateBookingDirect}
       />
 
       <HallsModal
@@ -488,6 +533,12 @@ export const App = () => {
         onClose={() => setIsChangeCredentialsOpen(false)}
         onShowToast={showToast}
         onSuccess={loadData}
+      />
+
+      <WhatsAppTemplateModal
+        isOpen={isWaTemplateModalOpen}
+        onClose={() => setIsWaTemplateModalOpen(false)}
+        onShowToast={showToast}
       />
 
       <ConfirmModal

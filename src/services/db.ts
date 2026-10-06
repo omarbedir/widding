@@ -4,6 +4,7 @@ import { getSupabaseClient } from '../lib/supabase';
 const STORAGE_KEY_HALLS = 'wedding_halls_data_v2';
 const STORAGE_KEY_BOOKINGS = 'wedding_bookings_data_v2';
 const STORAGE_KEY_USERS = 'wedding_users_data_v1';
+const STORAGE_KEY_SETTINGS = 'wedding_settings_data_v1';
 
 export const DEFAULT_USERS: AppUser[] = [
   {
@@ -29,6 +30,20 @@ export function getLocalHalls(): Hall[] {
 
 export function saveLocalHalls(halls: Hall[]): void {
   localStorage.setItem(STORAGE_KEY_HALLS, JSON.stringify(halls));
+}
+
+export function getLocalSettings(): Record<string, string> {
+  const data = localStorage.getItem(STORAGE_KEY_SETTINGS);
+  if (!data) return {};
+  try {
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
+}
+
+export function saveLocalSettings(settings: Record<string, string>): void {
+  localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
 }
 
 export function getLocalBookings(): Booking[] {
@@ -98,6 +113,8 @@ export const dbService = {
             id: item.id,
             name: item.name,
             capacity: item.capacity,
+            price: item.price || 0,
+            inclusions: item.inclusions || '',
             created_at: item.created_at,
           }));
           saveLocalHalls(halls);
@@ -145,6 +162,10 @@ export const dbService = {
               totalAmount: Number(item.total_amount) || 0,
               paidAmount: Number(item.paid_amount) || 0,
               remainingAmount: Number(item.remaining_amount) || 0,
+              additionalServicesAmount: Number(item.additional_services_amount) || 0,
+              additions: Array.isArray(item.additions) ? item.additions : (typeof item.additions === 'string' ? JSON.parse(item.additions) : []),
+              discount: Number(item.discount) || 0,
+              payments: Array.isArray(item.payments) ? item.payments : (typeof item.payments === 'string' ? JSON.parse(item.payments) : []),
               notes: cleanNotes,
               createdById: item.created_by_id || '',
               createdByName: creatorName || 'مسؤول النظام',
@@ -165,12 +186,23 @@ export const dbService = {
     const supabase = getSupabaseClient();
     if (supabase) {
       try {
-        const { error } = await supabase.from('halls').upsert({
+        const payload: any = {
           id: hall.id,
           name: hall.name,
           capacity: hall.capacity,
-        });
-        if (error) console.error('Supabase upsert hall error:', error);
+          price: hall.price || 0,
+          inclusions: hall.inclusions || '',
+        };
+        const { error } = await supabase.from('halls').upsert(payload);
+        if (error) {
+          if (error.message.includes('price')) {
+            delete payload.price;
+            const retryRes = await supabase.from('halls').upsert(payload);
+            if (retryRes.error) console.error('Supabase upsert retry error:', retryRes.error);
+          } else {
+            console.error('Supabase upsert hall error:', error);
+          }
+        }
       } catch (e) {
         console.warn('Supabase error on save hall:', e);
       }
@@ -214,6 +246,10 @@ export const dbService = {
           total_amount: booking.totalAmount,
           paid_amount: booking.paidAmount,
           remaining_amount: booking.remainingAmount,
+          additional_services_amount: booking.additionalServicesAmount || 0,
+          additions: booking.additions || [],
+          discount: booking.discount || 0,
+          payments: booking.payments || [],
           notes: notesToSave,
           created_by_id: booking.createdById || '',
           created_by_name: booking.createdByName || '',
@@ -221,13 +257,17 @@ export const dbService = {
 
         const { error } = await supabase.from('bookings').upsert(payload);
         if (error) {
-          // If created_by_name / created_by_id columns are not in schema cache, retry without them
+          // Retry without created_by_name or additional_services_amount if schema is outdated
           if (
             error.message.includes('created_by_name') ||
-            error.message.includes('created_by_id')
+            error.message.includes('created_by_id') ||
+            error.message.includes('additional_services_amount') ||
+            error.message.includes('payments')
           ) {
             delete payload.created_by_id;
             delete payload.created_by_name;
+            delete payload.additional_services_amount;
+            delete payload.payments;
             const retryRes = await supabase.from('bookings').upsert(payload);
             if (retryRes.error) {
               console.error('Supabase upsert retry error:', retryRes.error);
@@ -331,5 +371,41 @@ export const dbService = {
     }
     return true;
   },
-};
 
+  async fetchSettings(): Promise<Record<string, string>> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('settings').select('*');
+        if (!error && data) {
+          const settingsObj: Record<string, string> = {};
+          data.forEach(row => {
+            settingsObj[row.key] = row.value;
+          });
+          saveLocalSettings(settingsObj);
+          return settingsObj;
+        }
+      } catch (e) {
+        console.warn('Supabase fetch settings failed, fallback to local', e);
+      }
+    }
+    return getLocalSettings();
+  },
+
+  async saveSetting(key: string, value: string): Promise<boolean> {
+    const settings = getLocalSettings();
+    settings[key] = value;
+    saveLocalSettings(settings);
+
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('settings').upsert({ key, value });
+        if (error) console.error('Supabase upsert setting error:', error);
+      } catch (e) {
+        console.warn('Supabase error on save setting:', e);
+      }
+    }
+    return true;
+  },
+};

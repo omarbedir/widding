@@ -6,7 +6,7 @@ interface HallsModalProps {
   onClose: () => void;
   halls: Hall[];
   bookings: Booking[];
-  onSaveHall: (hallData: { id?: string; name: string; capacity: number }) => void;
+  onSaveHall: (hallData: { id?: string; name: string; capacity: number; price?: number; inclusions?: string }) => void;
   onDeleteHall: (hall: Hall) => void;
 }
 
@@ -21,6 +21,8 @@ export const HallsModal: React.FC<HallsModalProps> = ({
   const [editingHallId, setEditingHallId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [capacity, setCapacity] = useState<number | ''>('');
+  const [price, setPrice] = useState<number | ''>('');
+  const [inclusions, setInclusions] = useState('');
 
   if (!isOpen) return null;
 
@@ -28,12 +30,16 @@ export const HallsModal: React.FC<HallsModalProps> = ({
     setEditingHallId(hall.id);
     setName(hall.name);
     setCapacity(hall.capacity);
+    setPrice(hall.price || '');
+    setInclusions(hall.inclusions || '');
   };
 
   const handleCancelEdit = () => {
     setEditingHallId(null);
     setName('');
     setCapacity('');
+    setPrice('');
+    setInclusions('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -44,6 +50,8 @@ export const HallsModal: React.FC<HallsModalProps> = ({
       id: editingHallId || undefined,
       name: name.trim(),
       capacity: Number(capacity) || 300,
+      price: Number(price) || 0,
+      inclusions: inclusions.trim(),
     });
 
     handleCancelEdit();
@@ -104,7 +112,7 @@ export const HallsModal: React.FC<HallsModalProps> = ({
                           {hall.name}
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
-                          السعة: {hall.capacity} فرد | إجمالي الحجوزات: {hallBookingsCount}
+                          السعة: {hall.capacity} فرد | السعر: {hall.price || 0} جنيه | إجمالي الحجوزات: {hallBookingsCount}
                         </div>
                       </div>
 
@@ -185,6 +193,36 @@ export const HallsModal: React.FC<HallsModalProps> = ({
                   placeholder="مثال: 300"
                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-mono"
                 />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  سعر الحجز (جنيه) <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={price}
+                  onChange={(e) =>
+                    setPrice(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  placeholder="مثال: 5000"
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  مشتملات القاعة (كل بند في سطر)
+                </label>
+                <textarea
+                  value={inclusions}
+                  onChange={(e) => setInclusions(e.target.value)}
+                  placeholder="مثال:&#10;500 كرسي&#10;دي جي&#10;كوشة"
+                  rows={3}
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition leading-relaxed resize-none"
+                ></textarea>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-2">

@@ -3,6 +3,7 @@ import { authService } from '../services/auth';
 
 interface HeaderProps {
   onOpenHallsModal: () => void;
+  onOpenWaTemplateModal: () => void;
   onOpenUsersModal?: () => void;
   onOpenChangeCredentials: () => void;
   onLogout: () => void;
@@ -11,6 +12,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenHallsModal,
   onOpenUsersModal,
+  onOpenWaTemplateModal,
   onOpenChangeCredentials,
   onLogout,
 }) => {
@@ -36,6 +38,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Manage WA Template Button */}
+          <button
+            type="button"
+            onClick={onOpenWaTemplateModal}
+            className="bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 shadow-sm cursor-pointer whitespace-nowrap"
+            title="قالب رسالة الواتس آب"
+          >
+            <i className="fa-brands fa-whatsapp text-emerald-400 text-xs sm:text-sm"></i>
+            <span className="hidden lg:inline">قالب الواتس آب</span>
+          </button>
+
           {/* Manage Users Button */}
           {onOpenUsersModal && (
             <button

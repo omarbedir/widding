@@ -2,6 +2,8 @@ export interface Hall {
   id: string;
   name: string;
   capacity: number;
+  price?: number;
+  inclusions?: string;
   created_at?: string;
 }
 
@@ -11,6 +13,19 @@ export interface AppUser {
   username: string;
   password?: string;
   created_at?: string;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  date: string;
+  description?: string;
+}
+
+export interface Addition {
+  id: string;
+  name: string;
+  price: number;
 }
 
 export interface Booking {
@@ -24,6 +39,10 @@ export interface Booking {
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
+  additionalServicesAmount?: number;
+  additions?: Addition[];
+  discount?: number;
+  payments?: Payment[];
   notes?: string;
   created_at?: string;
   createdById?: string;

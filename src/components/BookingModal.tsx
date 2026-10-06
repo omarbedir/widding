@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Hall, Booking } from '../types';
-import { formatDateStr, formatCurrency } from '../utils/dateUtils';
+import { formatDateStr } from '../utils/dateUtils';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -27,7 +27,8 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [recommendation, setRecommendation] = useState('');
   const [hallId, setHallId] = useState('');
   const [date, setDate] = useState('');
-  const [totalAmount, setTotalAmount] = useState<number | ''>('');
+  const [baseHallPrice, setBaseHallPrice] = useState<number>(0);
+  const [additionalServicesAmount, setAdditionalServicesAmount] = useState<number | ''>('');
   const [paidAmount, setPaidAmount] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
 
@@ -40,7 +41,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         setRecommendation(editBooking.recommendation || '');
         setHallId(editBooking.hallId || (halls[0]?.id || ''));
         setDate(editBooking.date || formatDateStr(new Date()));
-        setTotalAmount(editBooking.totalAmount || '');
+        const existingBasePrice = (editBooking.totalAmount || 0) - (editBooking.additionalServicesAmount || 0);
+        setBaseHallPrice(existingBasePrice);
+        setAdditionalServicesAmount(editBooking.additionalServicesAmount || '');
         setPaidAmount(editBooking.paidAmount || '');
         setNotes(editBooking.notes || '');
       } else {
@@ -48,32 +51,43 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         setPhone('');
         setSecondaryPhone('');
         setRecommendation('');
-        setHallId(initialHallId || (halls[0]?.id || ''));
+        const initHall = initialHallId || (halls[0]?.id || '');
+        setHallId(initHall);
         setDate(initialDate || formatDateStr(new Date()));
-        setTotalAmount('');
+        const hallObj = halls.find(h => h.id === initHall);
+        setBaseHallPrice(hallObj?.price || 0);
+        setAdditionalServicesAmount('');
         setPaidAmount('');
         setNotes('');
       }
     }
   }, [isOpen, editBooking, initialDate, initialHallId, halls]);
 
+  const handleHallChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newHallId = e.target.value;
+    setHallId(newHallId);
+    const hallObj = halls.find(h => h.id === newHallId);
+    if (hallObj && hallObj.price !== undefined) {
+      setBaseHallPrice(hallObj.price);
+    }
+  };
+
   if (!isOpen) return null;
 
-  const totalNum = typeof totalAmount === 'number' ? totalAmount : 0;
+  const additionalNum = typeof additionalServicesAmount === 'number' ? additionalServicesAmount : 0;
+  const totalNum = baseHallPrice + additionalNum;
   const paidNum = typeof paidAmount === 'number' ? paidAmount : 0;
-  const isPaidExceeding = totalNum > 0 && paidNum > totalNum;
   const remainingAmount = Math.max(0, totalNum - paidNum);
 
   const selectedHall = halls.find((h) => h.id === hallId);
   const modalTitle = editBooking
     ? 'تعديل بيانات الحجز'
     : selectedHall
-    ? `تسجيل حجز جديد - ${selectedHall.name}`
-    : 'تسجيل حجز جديد';
+      ? `تسجيل حجز جديد - ${selectedHall.name}`
+      : 'تسجيل حجز جديد';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isPaidExceeding) return;
 
     onSave({
       id: editBooking ? editBooking.id : undefined,
@@ -86,6 +100,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       totalAmount: totalNum,
       paidAmount: paidNum,
       remainingAmount,
+      additionalServicesAmount: additionalNum,
       notes: notes.trim(),
     });
   };
@@ -137,8 +152,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   type="tel"
                   required
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setPhone(val);
+                  }}
                   placeholder="01xxxxxxxxx"
+                  pattern="[0-9]{11}"
+                  title="يجب أن يتكون رقم الهاتف من 11 رقماً"
+                  maxLength={11}
                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-mono"
                   dir="ltr"
                 />
@@ -151,8 +172,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 <input
                   type="tel"
                   value={secondaryPhone}
-                  onChange={(e) => setSecondaryPhone(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setSecondaryPhone(val);
+                  }}
                   placeholder="01xxxxxxxxx"
+                  pattern="[0-9]{11}"
+                  title="يجب أن يتكون رقم الهاتف من 11 رقماً"
+                  maxLength={11}
                   className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-mono"
                   dir="ltr"
                 />
@@ -167,7 +194,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 </label>
                 <select
                   value={hallId}
-                  onChange={(e) => setHallId(e.target.value)}
+                  onChange={handleHallChange}
                   className="w-full bg-slate-800 border border-slate-700 text-amber-300 font-bold rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition cursor-pointer"
                 >
                   {halls.map((h) => (
@@ -206,42 +233,50 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               />
             </div>
 
-            {/* Financials (3 Cols) */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            {/* Price Breakdown */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1 text-xs">
-                  المبلغ الكلي
+                <label className="block text-slate-300 font-semibold mb-1 text-xs sm:text-sm">
+                  سعر القاعة الأساسي
                 </label>
                 <input
                   type="number"
-                  min="0"
-                  value={totalAmount}
-                  onChange={(e) =>
-                    setTotalAmount(e.target.value === '' ? '' : Number(e.target.value))
-                  }
+                  readOnly
+                  value={baseHallPrice}
                   placeholder="0"
-                  className="w-full bg-slate-800 border border-slate-700 text-slate-200 rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition font-bold text-center"
+                  className="w-full bg-slate-950 border border-slate-800 text-slate-400 font-bold rounded-xl p-2.5 text-center cursor-not-allowed"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1 text-xs">
-                  العربون
+                <label className="block text-slate-300 font-semibold mb-1 text-xs sm:text-sm">
+                  مبلغ خدمات إضافية
                 </label>
                 <input
                   type="number"
                   min="0"
-                  max={totalNum > 0 ? totalNum : undefined}
-                  value={paidAmount}
+                  value={additionalServicesAmount}
                   onChange={(e) =>
-                    setPaidAmount(e.target.value === '' ? '' : Number(e.target.value))
+                    setAdditionalServicesAmount(e.target.value === '' ? '' : Number(e.target.value))
                   }
+                  placeholder="مثال: 1500"
+                  className="w-full bg-slate-800 border border-slate-700 text-emerald-400 font-bold rounded-xl p-2.5 focus:border-amber-500 focus:outline-none transition text-center"
+                />
+              </div>
+            </div>
+
+            {/* Financials Summary */}
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1 text-xs">
+                  المبلغ الكلي (الإجمالي)
+                </label>
+                <input
+                  type="number"
+                  readOnly
+                  value={totalNum}
                   placeholder="0"
-                  className={`w-full bg-slate-800 border text-emerald-400 rounded-xl p-2.5 focus:outline-none transition font-bold text-center ${
-                    isPaidExceeding
-                      ? 'border-rose-500 text-rose-400 focus:border-rose-400'
-                      : 'border-slate-700 focus:border-amber-500'
-                  }`}
+                  className="w-full bg-slate-950 border border-slate-800 text-amber-400 font-bold rounded-xl p-2.5 text-center cursor-not-allowed"
                 />
               </div>
 
@@ -254,20 +289,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   readOnly
                   value={remainingAmount}
                   placeholder="0"
-                  className="w-full bg-slate-950 border border-slate-800 text-amber-400 font-bold rounded-xl p-2.5 text-center cursor-not-allowed"
+                  className="w-full bg-slate-950 border border-slate-800 text-rose-400 font-bold rounded-xl p-2.5 text-center cursor-not-allowed"
                 />
               </div>
             </div>
-
-            {/* Error banner if paid amount > total amount */}
-            {isPaidExceeding && (
-              <div className="text-rose-400 text-xs font-bold bg-rose-950/40 border border-rose-500/40 p-2.5 rounded-xl flex items-center gap-2 animate-in fade-in duration-200">
-                <i className="fa-solid fa-triangle-exclamation text-sm shrink-0"></i>
-                <span>
-                  تنبيه: لا يمكن أن يتجاوز العربون / المبلغ المدفوع إجمالي المبلغ الكلي ({formatCurrency(totalNum)})
-                </span>
-              </div>
-            )}
 
             {/* Notes */}
             <div>
@@ -297,8 +322,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
             <button
               type="submit"
-              disabled={isPaidExceeding}
-              className="flex-1 sm:flex-initial px-5 py-2.5 bg-gradient-to-r from-emerald-500 via-amber-500 to-yellow-500 hover:from-emerald-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className="flex-1 sm:flex-initial px-5 py-2.5 bg-gradient-to-r from-emerald-500 via-amber-500 to-yellow-500 hover:from-emerald-400 hover:to-yellow-400 text-slate-950 font-extrabold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-95 text-xs sm:text-sm cursor-pointer"
             >
               <i className="fa-solid fa-circle-check text-sm"></i>
               <span>{editBooking ? 'حفظ التعديلات' : 'تأكيد الحجز والتعاقد'}</span>
