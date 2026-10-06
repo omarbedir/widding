@@ -171,11 +171,11 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
 
           {/* Action Buttons Row */}
           <div className="flex flex-wrap justify-between items-center gap-2 pb-3 border-b border-slate-800 shrink-0">
-            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setShowAddPayment((prev) => !prev)}
-                className={`font-bold text-xs flex items-center gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
+                className={`font-bold text-xs flex items-center justify-center sm:justify-start gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
                   showAddPayment
                     ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
                     : 'text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20'
@@ -188,7 +188,7 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
               <button
                 type="button"
                 onClick={() => { setShowAdditions((prev) => !prev); setShowAddPayment(false); setShowDiscount(false); }}
-                className={`font-bold text-xs flex items-center gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
+                className={`font-bold text-xs flex items-center justify-center sm:justify-start gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
                   showAdditions
                     ? 'bg-indigo-500 text-white border-indigo-400 shadow-md shadow-indigo-500/20'
                     : 'text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20'
@@ -201,7 +201,7 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
               <button
                 type="button"
                 onClick={() => { setShowDiscount((prev) => !prev); setShowAddPayment(false); setShowAdditions(false); }}
-                className={`font-bold text-xs flex items-center gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
+                className={`font-bold text-xs flex items-center justify-center sm:justify-start gap-1.5 px-3 py-2 rounded-xl transition border cursor-pointer active:scale-95 ${
                   showDiscount
                     ? 'bg-violet-500 text-white border-violet-400 shadow-md shadow-violet-500/20'
                     : 'text-violet-400 hover:text-violet-300 bg-violet-500/10 hover:bg-violet-500/20 border-violet-500/20'
@@ -214,7 +214,7 @@ export const BookingDetailsModal: React.FC<BookingDetailsModalProps> = ({
               <button
                 type="button"
                 onClick={() => onEdit(booking)}
-                className="text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center gap-1.5 px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition border border-amber-500/20 cursor-pointer"
+                className="text-amber-400 hover:text-amber-300 font-bold text-xs flex items-center justify-center sm:justify-start gap-1.5 px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition border border-amber-500/20 cursor-pointer"
               >
                 <i className="fa-solid fa-pen-to-square"></i>
                 <span>تعديل البيانات</span>
