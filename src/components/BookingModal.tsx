@@ -143,7 +143,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             {/* Phones (2 Cols) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
                   رقم الهاتف الرئيسي <span className="text-rose-400">*</span>
@@ -187,7 +187,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             {/* Hall & Recommendation (2 Cols) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
                   القاعة المحجوزة
@@ -234,7 +234,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             {/* Price Breakdown */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1 text-xs sm:text-sm">
                   سعر القاعة الأساسي
@@ -266,7 +266,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             {/* Financials Summary */}
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1 text-xs">
                   المبلغ الكلي (الإجمالي)
